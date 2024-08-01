@@ -1,0 +1,9 @@
+{
+  "scripts": {
+    "dev": "npx vite"
+  },
+  "devDependencies": {
+    "lodash-es": "^4.17.21",
+    "vite": "^5.3.5"
+  }
+}
