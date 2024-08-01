@@ -134,11 +134,13 @@ const {
 // console.log(record);
 
 function main() {
-  let index = variable("index", function (value) {
+  let index1 = variable("index1", { a: 1 });
+  console.log(index);
+  let index = variable("index", function (value22) {
     console.log(value);
-    let index = variable("index", { a: 1 });
-    console.log(index);
-    setVariable("index", ((index.a += 5), index));
+    let index2 = variable("index2", { a: 1 });
+    setVariable("index2", ((index2.a += 5), index2));
+    setVariable("index1", ((index1.a += 5), index1));
     return 546;
   });
 
@@ -148,7 +150,6 @@ function main() {
 main();
 exit();
 console.log(record);
-
 
 // for (
 //   let index = variable("index", 0);
