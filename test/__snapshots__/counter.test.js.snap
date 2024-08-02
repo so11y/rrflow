@@ -1,0 +1,32 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Sum of Odds 1`] = `
+"let counter = _scopeHelper.variable("counter", 0);
+let sum = _scopeHelper.variable("sum", 0);
+
+// 定义要计算的数列长度
+const length = _scopeHelper.variable("length", 10);
+
+// 循环迭代，直到计数器达到指定长度
+{
+  /****** 0 ******/
+  const _scopeTrack = _scopeHelper.createScope("for");
+  while (counter < length && _scopeTrack.track("counter < length")) {
+    // 每次迭代时增加计数器的值
+    _scopeHelper.setVariable("counter", (counter++, counter));
+
+    // 如果计数器的值是偶数，则将其加到累加器上
+    {
+      /****** 1 ******/
+      const _scopeTrack = _scopeHelper.createScope("if");
+      if ((counter % 2 === 0 || !!counter) && _scopeTrack.track("counter % 2 === 0 || !!counter")) {
+        _scopeHelper.setVariable("sum", (sum += counter, sum));
+      }
+      _scopeTrack.drop();
+      /****** 1 ******/
+    }
+  }
+  _scopeTrack.drop();
+  /****** 0 ******/
+}"
+`;
