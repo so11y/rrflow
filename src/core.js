@@ -1,160 +1,135 @@
 import { cloneDeep, isFunction } from "lodash-es";
-
-const runInSandBox = (src) => {
-  src = `with (sandbox) { ${src} }`;
-  const code = new Function("sandbox", src);
-
-  function has() {
-    return true;
-  }
-
-  function get(target, key) {
-    if (key === Symbol.unscopables) return undefined;
-    return target[key];
-  }
-
-  return (sandbox) => {
-    const context = new Proxy(sandbox, { has, get });
-    code(context);
-    return context;
-  };
-};
-
-let code = `
-console.log(aa,'---');
-`;
-
-// runInSandBox(code)({
-//   aa: 1,
-//   Math,
-//   console,
-// });
-
-const scope = () => {
+export function __codeRecodeScope__() {
+  const scopeHelperCache = new WeakMap();
   const scopeHelper = {
-    record: [],
     _scope: [],
+    _isExit: false,
     currentScope: null,
     createScope(name) {
       const newScope = {
         name,
-        var: {},
-        function: {},
         parent: scopeHelper.currentScope,
-        returned: undefined,
+        /** dyn keys */
+        /**
+         *   returned: undefined,
+         *   var:{}
+         *   function:{},
+         *   children:[]
+         *   dirtyChange:{} 修改了哪一些值
+         */
       };
+      if (scopeHelper.currentScope) {
+        if (!scopeHelper.currentScope.children) {
+          scopeHelper.currentScope.children = [];
+        }
+        scopeHelper.currentScope.children.push(newScope);
+      }
       scopeHelper._scope.push(newScope);
       scopeHelper.currentScope = newScope;
-      return {
-        drop: (value) => {
+      scopeHelperCache.set(newScope, {
+        test(expression, value) {
+          const scope = newScope;
+          if (!scope.test) {
+            scope.test = [];
+          }
+          scope.test.push({
+            expression,
+            value,
+          });
+          return value;
+        },
+        drop: (value, exit) => {
           const isDrop = scopeHelper._scope.findIndex(
             (scope) => scope === newScope
           );
           if (isDrop === scopeHelper._scope.length - 1) {
             const dropScope = scopeHelper._scope.pop();
             scopeHelper.currentScope = dropScope.parent;
-            dropScope.returned = cloneDeep(value);
-            scopeHelper.record.unshift(dropScope);
+            if (exit) {
+              dropScope.returned = cloneDeep(value);
+            }
+          }
+          if (exit && scopeHelper.currentScope.name === "global") {
+            scopeHelper.exit();
           }
         },
-      };
+      });
+      return scopeHelperCache.get(newScope);
     },
-    callFn(fn) {
+    getCurrentScopeHelper() {
+      return scopeHelperCache.get(scopeHelper.currentScope);
+    },
+    execute(name, fn) {
       const scope = scopeHelper.createScope("fn");
       let value = fn();
+      scope.name = name;
       scope.returned = cloneDeep(value);
       scope.drop(value);
       return value;
     },
     variable(key, value) {
       const isValueFunction = isFunction(value);
-      scopeHelper.currentScope[isValueFunction ? "function" : "var"][key] = {
+      const visitorKey = isValueFunction ? "function" : "var";
+      if (!scopeHelper.currentScope[visitorKey]) {
+        scopeHelper.currentScope[visitorKey] = {};
+      }
+      scopeHelper.currentScope[visitorKey][key] = {
         value,
         recode: [],
       };
       return value;
     },
     setVariable(key, value) {
-      const scope = scopeHelper.currentScope;
-      if (scope.var[key]) {
-        scope.var[key].value = value;
-        scope.var[key].recode.push(cloneDeep(value));
+      let scope = scopeHelper.currentScope;
+      while (!scope.var || !Reflect.has(scope.var, key)) {
+        scope = scope.parent;
       }
+      scope.var[key].recode.push({
+        value,
+        ordValue: cloneDeep(scope.var[key].value),
+        changeScope: scopeHelper.currentScope,
+      });
+      scope.var[key].value = value;
     },
     exit() {
       let globalScope = scopeHelper.currentScope;
-      while (!globalScope.name === "global") {
-        globalScope = scopeHelper.currentScope.parent;
+      if (!scopeHelper._isExit) {
+        while (globalScope.name !== "global") {
+          scopeHelperCache.get(globalScope).drop();
+          globalScope = globalScope.parent;
+        }
       }
-      scopeHelper.record.unshift(globalScope);
-      return scopeHelper.record;
+      return globalScope;
     },
   };
   scopeHelper.createScope("global");
   return scopeHelper;
-};
-const {
-  dropScope,
-  createScope,
-  variable,
-  getVariable,
-  setVariable,
-  dropVariable,
-  exit,
-  record,
-  callFn,
-} = scope();
-// function main() {
-//   // const {
-//   //   dropScope,
-//   //   createScope,
-//   //   variable,
-//   //   getVariable,
-//   //   setVariable,
-//   //   dropVariable,
-//   //   exit,
-//   // } = scope();
-//   let index = variable("index", 0);
-//   const { drop } = createScope("for");
-//   //----0
-//   for (
-//     let index = variable("index", 0);
-//     index < 10;
-//     setVariable("index", (index++, index))
-//   ) {
-//     console.log(index);
-//   }
-//   drop();
-//   //-----0
-//   setVariable("index", ++index);
-// }
-
-// main();
-// exit();
-// console.log(record);
-
-function main() {
-  let index1 = variable("index1", { a: 1 });
-  console.log(index);
-  let index = variable("index", function (value22) {
-    console.log(value);
-    let index2 = variable("index2", { a: 1 });
-    setVariable("index2", ((index2.a += 5), index2));
-    setVariable("index1", ((index1.a += 5), index1));
-    return 546;
-  });
-
-  callFn(() => a.b.c(1));
 }
 
-main();
-exit();
-console.log(record);
+const runInSandBox = (sandbox) => {
+  const context = new Proxy(sandbox, {
+    has: () => true,
+    get(target, key) {
+      if (key === Symbol.unscopables) return undefined;
+      return target[key];
+    },
+  });
+  return (rawCode) => {
+    const code = new Function(
+      "sandbox",
+      `with (sandbox) {
+      ${rawCode}
+     }`
+    );
+    code(context);
+    return context;
+  };
+};
 
-// for (
-//   let index = variable("index", 0);
-//   index < 10;
-// index<5? index+=1:index--
-//  ) {
-
-//  }
+export function sandBox(code) {
+  return runInSandBox({
+    Math,
+    console,
+    __codeRecodeScope__: __codeRecodeScope__(),
+  })(code);
+}

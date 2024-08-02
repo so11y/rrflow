@@ -1,103 +1,50 @@
-function builder(code) {
-  const { types, template, traverse, generator } = Babel.packages;
-  const transformed = Babel.transform(code, {
-    plugins: [
+import { builder } from "./analysis";
+import { sandBox, __codeRecodeScope__ } from "./core";
+
+const code = builder(`
+  function sumOfOdds(n) {
+    let sum = 0;
+    for (let i = 1; i <= n; i++) {
+      if (i < 3) {
+        sum += i;
+      }else{
+        return 555;
+      }
+    }
+    return sum;
+  }
+ sumOfOdds(10)
+  `);
+
+const _scopeHelper = __codeRecodeScope__();
+function sumOfOdds(n) {
+  const _scopeTrack = _scopeHelper.getCurrentScopeHelper();
+  let sum = _scopeHelper.variable("sum", 0);
+  {
+    /****** 0 ******/
+    const _scopeTrack = _scopeHelper.createScope("for");
+    for (
+      let i = _scopeHelper.variable("i", 1);
+      _scopeTrack.test("i <= n", i <= n);
+      _scopeHelper.setVariable("i", (i++, i))
+    ) {
       {
-        visitor: {
-          VariableDeclaration: {
-            exit(path) {
-              path.get("declarations").map((decPath) => {
-                const temp = `${path.get('kind').node} xx  = variable(xx,xx)`;
-                const tempCode = template.default`${temp}`;
-                const newCode = tempCode({
-                  // NAME: decPath.get("id").node,
-                  // CODE: decPath.get("init").node,
-                });
-
-                console.log(newCode.expression);
-                // decPath.set("init", newCode);
-                return newCode.expression
-              });
-              path.skip();
-            },
-          },
-          CallExpression: {
-            exit(path) {
-              const tempCode = template.default`callFn(()=> FN)`;
-              path.replaceWith(
-                tempCode({
-                  FN: path.node,
-                }).expression
-              );
-              console.log(456);
-              path.skip();
-            },
-          },
-          ForStatement: {
-            enter(_, state) {
-              if (state.forIndex === undefined) {
-                state.forIndex = 0;
-              } else {
-                state.forIndex++;
-              }
-            },
-            exit(path, state) {
-              const tempCode = template.default`
-            {
-              const {drop}= createScope("for");
-              CODE
-              drop();
-            }
-              `;
-              path.replaceWith(
-                tempCode({
-                  CODE: path.node,
-                })
-              );
-              path.skip();
-              state.forIndex--;
-            },
-          },
-        },
-      },
-    ],
-  }).code;
-
-  console.log(transformed, "-");
+        /****** 1 ******/
+        const _scopeTrack = _scopeHelper.createScope("if");
+        if (_scopeTrack.test("i < 3", i < 3)) {
+          _scopeHelper.setVariable("sum", ((sum += i), sum));
+        } else {
+          return _scopeTrack.drop(555, true);
+        }
+        _scopeTrack.drop();
+        /****** 1 ******/
+      }
+    }
+    _scopeTrack.drop();
+    /****** 0 ******/
+  }
+  return _scopeTrack.drop(sum, true);
 }
-
-builder(`
-
-const {a} = aa;
-`);
-
-// let a1 = function(){
-//   let index1 = 0;
-//   let index2 = 0;
-// }
-//   a1();
-
-//     for (
-//     let index = 0;
-//     index < 10;
-// index++
-//    ) {
-
-//      let index1 = 0;
-//    }
-
-// var xx = {a:1};
-// let a = vaa("a",xx,1)
-// let b = vaa("b",xx,2)
-
-// path.get("declarations").forEach((decPath) => {
-//   const tempCode = template.default`variable(NAME,CODE)`;
-//   console.log(decPath.get("id").node, "--");
-//   const newCode = tempCode({
-//     NAME: decPath.get("id").node,
-//     CODE: decPath.get("init").node,
-//   }).expression;
-//   console.log(generator.default((decPath.get("id").node)));
-//   // decPath.set("init", newCode);
-// });
-// path.skip();
+_scopeHelper.execute("sumOfOdds", () => sumOfOdds(10));
+_scopeHelper.exit();
+console.log(_scopeHelper.currentScope);

@@ -1,0 +1,26 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Sum of Odds 1`] = `
+"function sumOfOdds(n) {
+  let sum = _scopeHelper.variable("sum", 0);
+  {
+    /****** 0 ******/
+    const _scopeTrack = _scopeHelper.createScope("for");
+    for (let i = _scopeHelper.variable("i", 1); i <= n && _scopeTrack.track("i <= n"); _scopeHelper.setVariable("i", (i++, i))) {
+      {
+        /****** 1 ******/
+        const _scopeTrack = _scopeHelper.createScope("if");
+        if (i % 2 !== 0 && _scopeTrack.track("i % 2 !== 0")) {
+          _scopeHelper.setVariable("sum", (sum += i, sum));
+        }
+        _scopeTrack.drop();
+        /****** 1 ******/
+      }
+    }
+    _scopeTrack.drop();
+    /****** 0 ******/
+  }
+  return _scopeTrack.drop(sum);
+}
+_scopeHelper.execute(() => console.log(_scopeHelper.execute(() => sumOfOdds(10)))); // 输出 25"
+`;

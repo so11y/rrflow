@@ -1,9 +1,13 @@
 {
   "scripts": {
-    "dev": "npx vite"
+    "dev": "npx vite",
+    "test:browser": "vitest --workspace=vitest.workspace.js"
   },
   "devDependencies": {
+    "@babel/plugin-transform-destructuring": "^7.24.8",
+    "@babel/standalone": "^7.25.3",
     "lodash-es": "^4.17.21",
-    "vite": "^5.3.5"
+    "vite": "^5.3.5",
+    "vitest": "^2.0.5"
   }
 }
