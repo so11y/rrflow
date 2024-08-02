@@ -2,19 +2,24 @@ import destructuring from "@babel/plugin-transform-destructuring";
 import { transform, packages } from "@babel/standalone";
 
 function builder(code) {
-  const { types, template } = packages;
+  const { types, template, generator } = packages;
   const transformed = transform(code, {
     plugins: [
       destructuring,
       {
         visitor: {
+          Program(path, state) {
+            state.scopeTrack = path.scope.generateUidIdentifier("scopeTrack");
+            state.scopeHelper = path.scope.generateUidIdentifier("scopeHelper");
+          },
           VariableDeclaration: {
-            exit(path) {
+            exit(path, state) {
               path.get("declarations").forEach((decPath) => {
-                const tempCode = template.default`variable(NAME,CODE)`;
+                const tempCode = template.default`SCOPE_HELPER.variable(NAME,CODE)`;
                 const newCode = tempCode({
                   NAME: types.StringLiteral(decPath.get("id.name").node),
                   CODE: decPath.get("init").node,
+                  SCOPE_HELPER: state.scopeHelper,
                 }).expression;
                 decPath.set("init", newCode);
               });
@@ -22,11 +27,12 @@ function builder(code) {
             },
           },
           CallExpression: {
-            exit(path) {
-              const tempCode = template.default`callFn(()=> FN)`;
+            exit(path, state) {
+              const tempCode = template.default`SCOPE_HELPER.execute(()=> FN)`;
               path.replaceWith(
                 tempCode({
                   FN: path.node,
+                  SCOPE_HELPER: state.scopeHelper,
                 }).expression
               );
               path.skip();
@@ -42,11 +48,13 @@ function builder(code) {
             },
             exit(path, state) {
               const tempCode = template.default(`{
-                const {drop} = createScope("for");
+                const SCOPE_TRACK = SCOPE_HELPER.createScope("for");
                 CODE
-                drop();
+                SCOPE_TRACK.drop();
               }`);
               const BlockStatement = tempCode({
+                SCOPE_TRACK: state.scopeTrack,
+                SCOPE_HELPER: state.scopeHelper,
                 CODE: path.node,
               });
               // const comments = {
@@ -60,12 +68,13 @@ function builder(code) {
             },
           },
           ReturnStatement: {
-            exit(path) {
+            exit(path, state) {
               const tempCode = template.default`
-              return drop(NODE)
+              return SCOPE_TRACK.drop(NODE)
               `;
               path.replaceWith(
                 tempCode({
+                  SCOPE_TRACK: state.scopeTrack,
                   NODE: path.get("argument").node,
                 })
               );
@@ -73,13 +82,42 @@ function builder(code) {
             },
           },
           BreakStatement: {
-            exit(path) {
+            exit(path, state) {
               const nodes = [
-                types.CallExpression(types.Identifier("drop"), []),
+                template.default.ast(`${state.scopeTrack.name}.drop()`),
                 path.node,
               ];
               const newPath = path.replaceWithMultiple(nodes);
               newPath.forEach((path) => path.skip());
+            },
+          },
+          IfStatement: {
+            exit(path, state) {
+              const test = path.get("test");
+              const code = generator.default(test.node).code;
+
+              const testAst = template.default(`
+              ${code} && SCOPE_TRACK.track("${code}")
+              `)({
+                SCOPE_TRACK: state.scopeTrack,
+              });
+
+              path.set("test", testAst.expression);
+
+              const tempCode = template.default(`{
+                const SCOPE_TRACK = SCOPE_HELPER.createScope("if");
+                CODE
+                SCOPE_TRACK.drop();
+              }`);
+
+              const BlockStatement = tempCode({
+                SCOPE_TRACK: state.scopeTrack,
+                SCOPE_HELPER: state.scopeHelper,
+                CODE: path.node,
+              });
+
+              path.replaceWith(BlockStatement);
+              path.skip();
             },
           },
         },
@@ -90,17 +128,32 @@ function builder(code) {
 }
 
 builder(`
-function main(){
-  for (let index = 0; index < 10; index++) {
-    let index1 = 0;
-  
-    if (index  === 5) {
-      return 5;
-    }
-    break;
+let a1 = 5;
+let {so} = so1();
+
+if(a++){}
+
+for (let index = 0; index < 10; index++) {
+  let index1 = 0;
+
+  if (index  === 5) {
+      break;
   }
 }
+
+console.log(6);
 `);
+
+// let a1 = 5;
+// if(a++){}
+
+// for (let index = 0; index < 10; index++) {
+//   let index1 = 0;
+
+//   if (index  === 5) {
+//   break;
+//   }
+// }
 
 // let a1 = function () {
 //   let index1 = 0;
@@ -115,3 +168,17 @@ function main(){
 //     return 5;
 //   }
 // }
+
+// function main(){
+//   for (let index = 0; index < 10; index++) {
+//     let index1 = 0;
+
+//     if (index  === 5) {
+//       return 5;
+//     }
+//     break;
+//   }
+// }
+
+// const {aa1,bb2}  = [];
+// const {aa3,aa4} = xx();

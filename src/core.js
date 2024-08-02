@@ -58,7 +58,7 @@ const scope = () => {
         },
       };
     },
-    callFn(fn) {
+    execute(fn) {
       const scope = scopeHelper.createScope("fn");
       let value = fn();
       scope.returned = cloneDeep(value);
@@ -101,7 +101,7 @@ const {
   dropVariable,
   exit,
   record,
-  callFn,
+  execute,
 } = scope();
 // function main() {
 //   // const {
@@ -143,7 +143,7 @@ function main() {
     return 546;
   });
 
-  callFn(() => a.b.c(1));
+  execute(() => a.b.c(1));
 }
 
 main();
