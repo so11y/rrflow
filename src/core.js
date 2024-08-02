@@ -4,17 +4,16 @@ const runInSandBox = (src) => {
   src = `with (sandbox) { ${src} }`;
   const code = new Function("sandbox", src);
 
-  function has() {
-    return true;
-  }
-
-  function get(target, key) {
-    if (key === Symbol.unscopables) return undefined;
-    return target[key];
-  }
-
   return (sandbox) => {
-    const context = new Proxy(sandbox, { has, get });
+    const context = new Proxy(sandbox, {
+      has() {
+        return true;
+      },
+      get(target, key) {
+        if (key === Symbol.unscopables) return undefined;
+        return target[key];
+      },
+    });
     code(context);
     return context;
   };

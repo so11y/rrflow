@@ -1,22 +1,22 @@
+import destructuring from "@babel/plugin-transform-destructuring";
+import { transform, packages } from "@babel/standalone";
+
 function builder(code) {
-  const { types, template, traverse, generator } = Babel.packages;
-  const transformed = Babel.transform(code, {
+  const { types, template } = packages;
+  const transformed = transform(code, {
     plugins: [
+      destructuring,
       {
         visitor: {
           VariableDeclaration: {
             exit(path) {
-              path.get("declarations").map((decPath) => {
-                const temp = `${path.get('kind').node} xx  = variable(xx,xx)`;
-                const tempCode = template.default`${temp}`;
+              path.get("declarations").forEach((decPath) => {
+                const tempCode = template.default`variable(NAME,CODE)`;
                 const newCode = tempCode({
-                  // NAME: decPath.get("id").node,
-                  // CODE: decPath.get("init").node,
-                });
-
-                console.log(newCode.expression);
-                // decPath.set("init", newCode);
-                return newCode.expression
+                  NAME: types.StringLiteral(decPath.get("id.name").node),
+                  CODE: decPath.get("init").node,
+                }).expression;
+                decPath.set("init", newCode);
               });
               path.skip();
             },
@@ -29,7 +29,6 @@ function builder(code) {
                   FN: path.node,
                 }).expression
               );
-              console.log(456);
               path.skip();
             },
           },
@@ -42,62 +41,77 @@ function builder(code) {
               }
             },
             exit(path, state) {
+              const tempCode = template.default(`{
+                const {drop} = createScope("for");
+                CODE
+                drop();
+              }`);
+              const BlockStatement = tempCode({
+                CODE: path.node,
+              });
+              // const comments = {
+              //   value: `----${state.forIndex}`,
+              // };
+              // BlockStatement.leadingComments = [comments];
+              // BlockStatement.trailingComments = [comments];
+              path.replaceWith(BlockStatement);
+              path.skip();
+              state.forIndex--;
+            },
+          },
+          ReturnStatement: {
+            exit(path) {
               const tempCode = template.default`
-            {
-              const {drop}= createScope("for");
-              CODE
-              drop();
-            }
+              return drop(NODE)
               `;
               path.replaceWith(
                 tempCode({
-                  CODE: path.node,
+                  NODE: path.get("argument").node,
                 })
               );
               path.skip();
-              state.forIndex--;
+            },
+          },
+          BreakStatement: {
+            exit(path) {
+              const nodes = [
+                types.CallExpression(types.Identifier("drop"), []),
+                path.node,
+              ];
+              const newPath = path.replaceWithMultiple(nodes);
+              newPath.forEach((path) => path.skip());
             },
           },
         },
       },
     ],
   }).code;
-
-  console.log(transformed, "-");
+  console.log(transformed);
 }
 
 builder(`
-
-const {a} = aa;
+function main(){
+  for (let index = 0; index < 10; index++) {
+    let index1 = 0;
+  
+    if (index  === 5) {
+      return 5;
+    }
+    break;
+  }
+}
 `);
 
-// let a1 = function(){
+// let a1 = function () {
 //   let index1 = 0;
 //   let index2 = 0;
+// };
+// a1();
+
+// for (let index = 0; index < 10; index++) {
+//   let index1 = 0;
+
+//   if (index  === 5) {
+//     return 5;
+//   }
 // }
-//   a1();
-
-//     for (
-//     let index = 0;
-//     index < 10;
-// index++
-//    ) {
-
-//      let index1 = 0;
-//    }
-
-// var xx = {a:1};
-// let a = vaa("a",xx,1)
-// let b = vaa("b",xx,2)
-
-// path.get("declarations").forEach((decPath) => {
-//   const tempCode = template.default`variable(NAME,CODE)`;
-//   console.log(decPath.get("id").node, "--");
-//   const newCode = tempCode({
-//     NAME: decPath.get("id").node,
-//     CODE: decPath.get("init").node,
-//   }).expression;
-//   console.log(generator.default((decPath.get("id").node)));
-//   // decPath.set("init", newCode);
-// });
-// path.skip();
