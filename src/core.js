@@ -5,18 +5,17 @@ export function __codeRecodeScope__() {
     _scope: [],
     _isExit: false,
     currentScope: null,
-    createScope(name) {
+    createScope(name, id) {
+      const prevScope = scopeHelper.currentScope;
+      if (id && prevScope.children) {
+        const scope = prevScope.children.find((child) => child.id === id);
+        scopeHelper.currentScope = scope;
+        return scopeHelperCache.get(scope);
+      }
       const newScope = {
+        id,
         name,
         parent: scopeHelper.currentScope,
-        /** dyn keys */
-        /**
-         *   returned: undefined,
-         *   var:{}
-         *   function:{},
-         *   children:[]
-         *   dirtyChange:{} 修改了哪一些值
-         */
       };
       if (scopeHelper.currentScope) {
         if (!scopeHelper.currentScope.children) {
@@ -44,12 +43,12 @@ export function __codeRecodeScope__() {
           );
           if (isDrop === scopeHelper._scope.length - 1) {
             const dropScope = scopeHelper._scope.pop();
-            dropScope.isDrop = true;
-            scopeHelper.currentScope = dropScope.parent;
+            scopeHelperCache.get(newScope).isDrop = true;
             if (exit) {
               dropScope.returned = cloneDeep(value);
             }
           }
+          scopeHelper.currentScope = newScope.parent;
           if (exit && scopeHelper.currentScope.name === "global") {
             scopeHelper.exit();
           }
@@ -65,7 +64,7 @@ export function __codeRecodeScope__() {
       const scope = scopeHelper.currentScope;
       scope.executeName = name;
       let value = fn();
-      if (!scope.isDrop) {
+      if (!scopeHelperCache.get(scope).isDrop) {
         scope.returned = cloneDeep(value);
         scopeTrack.drop(value);
       }

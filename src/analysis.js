@@ -1,43 +1,9 @@
-import destructuring from "@babel/plugin-transform-destructuring";
 import { transform, packages } from "@babel/standalone";
-
-function getRefNodeName(path) {
-  const { types } = packages;
-  switch (path.type) {
-    case "Identifier":
-      return path.node.name;
-    case "MemberExpression": {
-      let node = path.node;
-      while (!types.isIdentifier(node)) {
-        node = node.object;
-      }
-      return node.name;
-    }
-  }
-  throw `不支持`;
-}
-
-function getExecutePathName(path) {
-  const { generator, types } = packages;
-  switch (path.type) {
-    case "Identifier":
-      return types.StringLiteral(path.node.name);
-    case "MemberExpression": {
-      return types.StringLiteral(generator.default(path.node).code);
-    }
-  }
-  throw `不支持`;
-}
-
-function isLoopStatement(path) {
-  const { types } = packages;
-  const validates = [types.isForStatement, types.isWhileStatement];
-  return validates.some((validate) => validate(path));
-}
+import { isLoopStatement, getExecutePathName } from "./helper";
+import { uniqueId } from "lodash-es";
 
 export function builder(code) {
   const { types, template, generator } = packages;
-  const t = types;
   return transform(code, {
     plugins: [
       {
@@ -118,7 +84,7 @@ export function builder(code) {
               const tempCode = template.default(
                 `{
                 /****** ${state.forIndex} ******/
-                const SCOPE_TRACK = SCOPE_HELPER.createScope("${scopeName}");
+                const SCOPE_TRACK = SCOPE_HELPER.createScope("${scopeName}",${uniqueId()});
                 CODE
                 SCOPE_TRACK.drop();
                 /****** ${state.forIndex} ******/
