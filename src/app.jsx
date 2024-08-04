@@ -33,7 +33,7 @@ sumOfOdds(10);`)
       <div className='flex-auto flex flex-col'>
         <button onClick={translate}>编译</button>
         <textarea className='w-full flex-auto' value={code()} onInput={(e) => setCode(e.currentTarget.value)}></textarea>
-        <textarea className='flex-auto w-full' value={translateCode()} />
+        <textarea readOnly className='flex-auto w-full' value={translateCode()} />
       </div>
       <div className='flex-auto'></div>
     </div>
