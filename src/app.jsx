@@ -1,13 +1,14 @@
 import { createSignal, onMount } from 'solid-js'
 import { builder } from "../flow/analysis";
 import { sandBox, } from "../flow/core";
+import Graph from "./graph"
 
 
 function App() {
   const [code, setCode] = createSignal(`function sumOfOdds(n) {
   let sum = 0;
   for (let i = 1; i <= n; i++) {
-    if (i === 5) {
+    if (i === 2) {
       console.log(5);
     } else {
       console.log(6);
@@ -20,11 +21,13 @@ sumOfOdds(10);`)
   const [recode, setRecode] = createSignal(null)
   function translate() {
     setTranslateCode(builder(code()))
-    const r = sandBox(translateCode());
-    setRecode(r.__codeRecodeScope__
-      .currentScope)
-    console.log(r.__codeRecodeScope__
-      .currentScope);
+    try {
+      setRecode(sandBox(translateCode()).__codeRecodeScope__
+        .currentScope)
+    } catch (error) {
+      console.error(error)
+    }
+
   }
   onMount(translate)
 
@@ -35,7 +38,7 @@ sumOfOdds(10);`)
         <textarea className='w-full flex-auto resize-none' value={code()} onInput={(e) => setCode(e.currentTarget.value)}></textarea>
         <textarea readOnly className='flex-auto w-full' value={translateCode()} />
       </div>
-      <div className='flex-auto'></div>
+      <Graph recode={recode()} />
     </div>
   )
 }

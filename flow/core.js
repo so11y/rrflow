@@ -1,4 +1,4 @@
-import { cloneDeep } from "lodash-es";
+import { cloneDeep, uniqueId } from "lodash-es";
 export function __codeRecodeScope__() {
   const scopeHelperCache = new WeakMap();
   const scopeHelper = {
@@ -7,15 +7,18 @@ export function __codeRecodeScope__() {
     currentScope: null,
     createScope(name, id) {
       const prevScope = scopeHelper.currentScope;
-      if (id && prevScope.children) {
+      if (prevScope && id && prevScope.children) {
         const scope = prevScope.children.find((child) => child.id === id);
-        scopeHelper.currentScope = scope;
-        return scopeHelperCache.get(scope);
+        if (scope) {
+          scopeHelper.currentScope = scope;
+          return scopeHelperCache.get(scope);
+        }
       }
       const newScope = {
         id,
         name,
         parent: scopeHelper.currentScope,
+        where: prevScope?.test?.at(-1) || null,
       };
       if (scopeHelper.currentScope) {
         if (!scopeHelper.currentScope.children) {
@@ -59,14 +62,9 @@ export function __codeRecodeScope__() {
     getCurrentScopeHelper() {
       return scopeHelperCache.get(scopeHelper.currentScope);
     },
-    execute(name, fn) {
-      const scopeTrack = scopeHelper.createScope("fn");
+    execute(name, fn, id) {
+      const scopeTrack = scopeHelper.createScope("fn", id);
       const scope = scopeHelper.currentScope;
-      //记录执行条件入口什么
-      if (scope.parent.name === "if" || scope.parent.name === "for") {
-        const where = scope.parent.test.at(-1);
-        scope.where = where;
-      }
       scope.executeName = name;
       let value = fn();
       if (!scopeHelperCache.get(scope).isDrop) {
@@ -86,7 +84,7 @@ export function __codeRecodeScope__() {
       return globalScope;
     },
   };
-  scopeHelper.createScope("global");
+  scopeHelper.createScope("global", uniqueId());
   return scopeHelper;
 }
 

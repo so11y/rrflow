@@ -33,7 +33,9 @@ export function builder(code) {
           },
           CallExpression: {
             exit(path, state) {
-              const tempCode = template.default`SCOPE_HELPER.execute(EXPRESSION,()=> FN)`;
+              const tempCode = template.default(
+                `SCOPE_HELPER.execute(EXPRESSION,()=> FN,${uniqueId()})`
+              );
               path.replaceWith(
                 tempCode({
                   FN: path.node,
