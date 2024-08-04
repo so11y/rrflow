@@ -43,7 +43,7 @@ sumOfOdds(10);`)
   onMount(translate)
 
   return (
-    <div className='min-w-screen min-h-screen  flex'>
+    <div className='min-w-screen min-h-screen  flex p-8px  box-border'>
       <div className='flex-auto flex flex-col'>
         <button onClick={translate}>编译</button>
         <textarea className='w-full flex-auto' value={code()} onInput={(e) => setCode(e.currentTarget.value)}></textarea>
