@@ -44,6 +44,7 @@ export function __codeRecodeScope__() {
           );
           if (isDrop === scopeHelper._scope.length - 1) {
             const dropScope = scopeHelper._scope.pop();
+            dropScope.isDrop = true;
             scopeHelper.currentScope = dropScope.parent;
             if (exit) {
               dropScope.returned = cloneDeep(value);
@@ -60,36 +61,15 @@ export function __codeRecodeScope__() {
       return scopeHelperCache.get(scopeHelper.currentScope);
     },
     execute(name, fn) {
-      const scope = scopeHelper.createScope("fn");
+      const scopeTrack = scopeHelper.createScope("fn");
+      const scope = scopeHelper.currentScope;
+      scope.executeName = name;
       let value = fn();
-      scope.name = name;
-      scope.returned = cloneDeep(value);
-      scope.drop(value);
-      return value;
-    },
-    variable(key, value) {
-      const isValueFunction = isFunction(value);
-      const visitorKey = isValueFunction ? "function" : "var";
-      if (!scopeHelper.currentScope[visitorKey]) {
-        scopeHelper.currentScope[visitorKey] = {};
+      if (!scope.isDrop) {
+        scope.returned = cloneDeep(value);
+        scopeTrack.drop(value);
       }
-      scopeHelper.currentScope[visitorKey][key] = {
-        value,
-        recode: [],
-      };
       return value;
-    },
-    setVariable(key, value) {
-      let scope = scopeHelper.currentScope;
-      while (!scope.var || !Reflect.has(scope.var, key)) {
-        scope = scope.parent;
-      }
-      scope.var[key].recode.push({
-        value,
-        ordValue: cloneDeep(scope.var[key].value),
-        changeScope: scopeHelper.currentScope,
-      });
-      scope.var[key].value = value;
     },
     exit() {
       let globalScope = scopeHelper.currentScope;

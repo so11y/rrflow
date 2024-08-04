@@ -40,7 +40,6 @@ export function builder(code) {
   const t = types;
   return transform(code, {
     plugins: [
-      destructuring,
       {
         visitor: {
           Program: {
@@ -64,20 +63,6 @@ export function builder(code) {
               });
 
               path.pushContainer("body", exit).forEach((path) => path.skip());
-            },
-          },
-          VariableDeclaration: {
-            exit(path, state) {
-              path.get("declarations").forEach((decPath) => {
-                const tempCode = template.default`SCOPE_HELPER.variable(NAME,CODE)`;
-                const newCode = tempCode({
-                  NAME: types.StringLiteral(decPath.get("id.name").node),
-                  CODE: decPath.get("init").node,
-                  SCOPE_HELPER: state.scopeHelper,
-                }).expression;
-                decPath.set("init", newCode);
-              });
-              path.skip();
             },
           },
           CallExpression: {
@@ -127,6 +112,9 @@ export function builder(code) {
             },
             exit(path, state) {
               const scopeName = isLoopStatement(path) ? "for" : "if";
+              if (path.key === "alternate") {
+                return;
+              }
               const tempCode = template.default(
                 `{
                 /****** ${state.forIndex} ******/
@@ -164,25 +152,6 @@ export function builder(code) {
                 path.replaceWith(testAst);
                 path.skip();
               }
-            },
-          },
-          "AssignmentExpression|UpdateExpression": {
-            exit(path, state) {
-              const leftPath = path.isUpdateExpression()
-                ? path.get("argument")
-                : path.get("left");
-              let refName = getRefNodeName(leftPath);
-              const tempCode = template.default(
-                `SCOPE_HELPER.setVariable("REF_NAME",(NODE,REF_NAME))`
-              );
-              path.replaceWith(
-                tempCode({
-                  REF_NAME: refName,
-                  NODE: path.node,
-                  SCOPE_HELPER: state.scopeHelper,
-                })
-              );
-              path.skip();
             },
           },
           "FunctionDeclaration|ArrowFunctionExpression|ObjectMethod": {
