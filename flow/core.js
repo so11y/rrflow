@@ -1,4 +1,4 @@
-import { cloneDeep, isFunction } from "lodash-es";
+import { cloneDeep } from "lodash-es";
 export function __codeRecodeScope__() {
   const scopeHelperCache = new WeakMap();
   const scopeHelper = {
@@ -62,6 +62,11 @@ export function __codeRecodeScope__() {
     execute(name, fn) {
       const scopeTrack = scopeHelper.createScope("fn");
       const scope = scopeHelper.currentScope;
+      //记录执行条件入口什么
+      if (scope.parent.name === "if" || scope.parent.name === "for") {
+        const where = scope.parent.test.at(-1);
+        scope.where = where;
+      }
       scope.executeName = name;
       let value = fn();
       if (!scopeHelperCache.get(scope).isDrop) {
