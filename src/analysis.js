@@ -17,14 +17,16 @@ function getRefNodeName(path) {
   throw `不支持`;
 }
 
-function isInTestBinary(path) {
-  const { types } = packages;
-  const parentValidate = [
-    types.isForStatement,
-    types.isWhileStatement,
-    types.isIfStatement,
-  ];
-  return parentValidate.some((validate) => validate(path.parent));
+function getExecutePathName(path) {
+  const { generator, types } = packages;
+  switch (path.type) {
+    case "Identifier":
+      return types.StringLiteral(path.node.name);
+    case "MemberExpression": {
+      return types.StringLiteral(generator.default(path.node).code);
+    }
+  }
+  throw `不支持`;
 }
 
 function isLoopStatement(path) {
@@ -35,14 +37,34 @@ function isLoopStatement(path) {
 
 export function builder(code) {
   const { types, template, generator } = packages;
+  const t = types;
   return transform(code, {
     plugins: [
       destructuring,
       {
         visitor: {
-          Program(path, state) {
-            state.scopeTrack = path.scope.generateUidIdentifier("scopeTrack");
-            state.scopeHelper = path.scope.generateUidIdentifier("scopeHelper");
+          Program: {
+            enter(path, state) {
+              state.scopeTrack = path.scope.generateUidIdentifier("scopeTrack");
+              state.scopeHelper =
+                path.scope.generateUidIdentifier("scopeHelper");
+            },
+            exit(path, state) {
+              const scopeHelper = template.default(`
+                const SCOPE_HELPER = __codeRecodeScope__;
+              `)({
+                SCOPE_HELPER: state.scopeHelper,
+              });
+              path
+                .unshiftContainer("body", scopeHelper)
+                .forEach((path) => path.skip());
+
+              const exit = template.default(`SCOPE_HELPER.exit()`)({
+                SCOPE_HELPER: state.scopeHelper,
+              });
+
+              path.pushContainer("body", exit).forEach((path) => path.skip());
+            },
           },
           VariableDeclaration: {
             exit(path, state) {
@@ -60,10 +82,11 @@ export function builder(code) {
           },
           CallExpression: {
             exit(path, state) {
-              const tempCode = template.default`SCOPE_HELPER.execute(()=> FN)`;
+              const tempCode = template.default`SCOPE_HELPER.execute(EXPRESSION,()=> FN)`;
               path.replaceWith(
                 tempCode({
                   FN: path.node,
+                  EXPRESSION: getExecutePathName(path.get("callee")),
                   SCOPE_HELPER: state.scopeHelper,
                 }).expression
               );
@@ -73,7 +96,7 @@ export function builder(code) {
           ReturnStatement: {
             exit(path, state) {
               const tempCode = template.default`
-              return SCOPE_TRACK.drop(NODE)
+              return SCOPE_TRACK.drop(NODE,true)
               `;
               path.replaceWith(
                 tempCode({
@@ -129,11 +152,11 @@ export function builder(code) {
           },
           "BinaryExpression|LogicalExpression": {
             exit(path, state) {
-              if (isInTestBinary(path)) {
+              if (path.key === "test") {
                 const code = generator.default(path.node).code;
-                const testAst = template.default(`
-                CODE && SCOPE_TRACK.track(EXPRESSION)
-                `)({
+                const testAst = template.default(
+                  `SCOPE_TRACK.test(EXPRESSION,CODE)`
+                )({
                   CODE: path.node,
                   EXPRESSION: types.StringLiteral(code),
                   SCOPE_TRACK: state.scopeTrack,
@@ -160,6 +183,20 @@ export function builder(code) {
                 })
               );
               path.skip();
+            },
+          },
+          "FunctionDeclaration|ArrowFunctionExpression|ObjectMethod": {
+            exit(path, state) {
+              const trackHelper = template.default(`
+                  const SCOPE_TRACK = SCOPE_HELPER.getCurrentScopeHelper()
+                  `)({
+                SCOPE_TRACK: state.scopeTrack,
+                SCOPE_HELPER: state.scopeHelper,
+              });
+              path
+                .get("body")
+                .unshiftContainer("body", trackHelper)
+                .forEach((path) => path.skip());
             },
           },
         },
