@@ -9,10 +9,12 @@ function App() {
   let sum = 0;
   for (let i = 1; i <= n; i++) {
     if (i === 2) {
-      console.log(5);
+      console.log(1);
     } else {
-      console.log(6);
+      console.log(2);
+      console.log(3);
     }
+    console.log(4);
   }
   return sum;
 }

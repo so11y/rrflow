@@ -72,7 +72,6 @@ export function __codeRecodeScope__() {
         scopeTrack.drop(value);
       }
       scopeHelper.currentScope = scope.parent;
-      console.log(scopeHelper.currentScope, "---");
       return value;
     },
     exit() {

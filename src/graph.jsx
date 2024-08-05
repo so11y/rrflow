@@ -1,22 +1,85 @@
 import { Graph } from "@antv/x6";
 import { DagreLayout } from "@antv/layout";
-import { onMount, createEffect } from "solid-js";
+import { onMount, createEffect, children } from "solid-js";
+import { isEqual, uniqueId } from "lodash-es";
+
+function getLabelText(recodeEl) {
+  switch (recodeEl.parent.name) {
+    case "for": {
+      return `x${recodeEl.parent.test.length - 1}`
+    }
+  }
+  if (recodeEl.parent.name === "if") {
+    const where = recodeEl.where;
+    if (where) {
+      return `条件:${where.expression},结果:${where.value}`
+    }
+  }
+  return ""
+
+}
+
+function zipIfNode(ifEl) {
+  const branch = [];
+  if (ifEl.children) {
+    ifEl.children.forEach(child => {
+      let findBranch = branch.find(i => isEqual(i.branch, child.where))
+      if (!findBranch) {
+        findBranch = {
+          branch: child.where,
+          nodes: []
+        }
+        branch.push(findBranch)
+      }
+      findBranch.nodes.push(child);
+    })
+  }
+  const children = branch.map(b => {
+    const newParent = {
+      id: uniqueId(),
+      parent: ifEl,
+      shape: undefined,
+      fakeNode: true,
+      where: b.branch,
+      shape: 'ellipse',
+      size: {
+        width: 150,
+        height: 40,
+      },
+      children: b.nodes || []
+    }
+    newParent.name = getLabelText(newParent);
+    b.nodes.forEach((child) => {
+      child.rawParent = child.parent;
+      child.parent = newParent;
+    })
+    return newParent
+  })
+  return {
+    ...ifEl,
+    children
+  }
+}
 
 function createRenderNode(recode) {
+  console.log(recode, '-');
   const nodes = [];
   const stack = [recode];
   const edges = [];
   while (stack.length) {
-    const current = stack.pop();
-    current.shape = "rect";
+    let current = stack.pop();
     current.id = current.id.toString();
-    current.size = {
-      width: 100,
-      height: 40,
-    };
+    if (current.name === "if") {
+      current = zipIfNode(current);
+    }
+    if (!current.size) {
+      current.size = {
+        width: 100,
+        height: 40,
+      };
+    }
     current.label = current.executeName ?? current.name;
     if (current.parent) {
-      const where = current.where;
       edges.push({
         source: current.parent.id,
         target: current.id,
@@ -24,17 +87,17 @@ function createRenderNode(recode) {
           {
             attrs: {
               label: {
-                text: where
-                  ? `条件:${where.expression},结果:${where.value}`
-                  : "",
+                text: current.fakeNode ? "" : getLabelText(current)
               },
             },
           },
         ],
       });
     }
+
     nodes.push(current);
     if (current.children) {
+      console.log(current.children, '---');
       stack.push(...current.children);
     }
   }
@@ -58,17 +121,13 @@ export default function graph(props) {
   });
 
   createEffect(() => {
-    console.log("recode =", props.recode);
     if (props.recode) {
       const layout = new DagreLayout({
-        type: "dagre", // 布局类型
-        rankdir: "TB", // 布局的方向
-        nodesep: "30", // 节点间距
-        ranksep: "0", // 层间距
+        type: "dagre",
+        rankdir: "TB",
+        nodesep: "30",
+        ranksep: "0",
       });
-      console.log(
-        createRenderNode(props.recode),'-'
-      );
       const model = layout.layout(createRenderNode(props.recode));
       graphImpl.fromJSON(model);
       graphImpl.centerContent();
