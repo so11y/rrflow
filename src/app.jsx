@@ -35,7 +35,7 @@ sumOfOdds(10);`)
 
   return (
     <div className='min-w-screen min-h-screen  flex p-8px  box-border'>
-      <div className='w-40% flex flex-col'>
+      <div className='w-50% flex flex-col'>
         <button onClick={translate}>编译</button>
         <textarea className='w-full flex-auto resize-none' value={code()} onInput={(e) => setCode(e.currentTarget.value)}></textarea>
         <textarea readOnly className='flex-auto w-full' value={translateCode()} />

@@ -97,7 +97,6 @@ function createRenderNode(recode) {
 
     nodes.push(current);
     if (current.children) {
-      console.log(current.children, '---');
       stack.push(...current.children);
     }
   }
@@ -116,6 +115,11 @@ export default function graph(props) {
       grid: true,
       background: {
         color: "#F2F7FA",
+      },
+      mousewheel: {
+        enabled: true,
+        minScale: 0.2,
+        maxScale: 4,
       },
     });
   });
