@@ -71,6 +71,8 @@ export function __codeRecodeScope__() {
         scope.returned = cloneDeep(value);
         scopeTrack.drop(value);
       }
+      scopeHelper.currentScope = scope.parent;
+      console.log(scopeHelper.currentScope, "---");
       return value;
     },
     exit() {

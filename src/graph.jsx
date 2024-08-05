@@ -66,9 +66,18 @@ export default function graph(props) {
         nodesep: "30", // 节点间距
         ranksep: "0", // 层间距
       });
+      console.log(
+        createRenderNode(props.recode),'-'
+      );
       const model = layout.layout(createRenderNode(props.recode));
       graphImpl.fromJSON(model);
       graphImpl.centerContent();
+      graphImpl.zoomToFit({
+        padding: {
+          left: 10,
+          right: 10,
+        },
+      });
     }
   });
 
